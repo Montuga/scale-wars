@@ -1321,6 +1321,40 @@ footer {
 </section>
 
 <!-- ══════════════════════════════════
+     VISOR 3D
+══════════════════════════════════ -->
+
+<section id="visor3d" class="reveal-wrap">
+  <div class="visor3d-header">
+    <h2>Explora en 3D</h2>
+    <p class="visor3d-subtitle">Rota, acerca y examina cada detalle · Infantería chilena · Guerra del Pacífico 1879 · Escala 1:35</p>
+  </div>
+
+  <div class="pose-selector">
+    <button class="pose-btn active" data-model="chilean infantery_pose_marchando_low.glb">Marchando</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_apuntado_low.glb">Apuntado</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_apuntando_hincado_low.glb">Apuntando hincado</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_cargando_low.glb">Cargando</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_corriendo_low.glb">Corriendo</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_trotando_low.glb">Trotando</button>
+  </div>
+
+  <div class="visor-wrap" id="visorWrap">
+    <div class="visor-loading" id="visorLoading">
+      <div class="visor-spinner"></div>
+      <span class="visor-loading-text" id="visorStatus">Iniciando visor...</span>
+    </div>
+    <div class="visor-error" id="visorError">No se pudo cargar el modelo</div>
+    <canvas class="visor-canvas" id="visorCanvas"></canvas>
+    <div class="visor-controls">
+      <button class="visor-ctrl-btn active" id="btnRotate">&#10679; Rotar</button>
+      <button class="visor-ctrl-btn" id="btnReset">&#10809; Reset</button>
+      <button class="visor-ctrl-btn" id="btnFull">&#9974; Full</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
      COLECCIÓN
 ══════════════════════════════════ -->
 <section class="collection" id="collection">
@@ -1456,39 +1490,6 @@ footer {
   </div>
 </section>
 
-<!-- ══════════════════════════════════
-     MANIFIESTO
-══════════════════════════════════ -->
-
-<section id="visor3d" class="reveal-wrap">
-  <div class="visor3d-header">
-    <h2>Explora en 3D</h2>
-    <p class="visor3d-subtitle">Rota, acerca y examina cada detalle · Infantería chilena · Guerra del Pacífico 1879 · Escala 1:35</p>
-  </div>
-
-  <div class="pose-selector">
-    <button class="pose-btn active" data-model="chilean infantery_pose_marchando_low.glb">Marchando</button>
-    <button class="pose-btn" data-model="chilean infantery_pose_apuntado_low.glb">Apuntado</button>
-    <button class="pose-btn" data-model="chilean infantery_pose_apuntando_hincado_low.glb">Apuntando hincado</button>
-    <button class="pose-btn" data-model="chilean infantery_pose_cargando_low.glb">Cargando</button>
-    <button class="pose-btn" data-model="chilean infantery_pose_corriendo_low.glb">Corriendo</button>
-    <button class="pose-btn" data-model="chilean infantery_pose_trotando_low.glb">Trotando</button>
-  </div>
-
-  <div class="visor-wrap" id="visorWrap">
-    <div class="visor-loading" id="visorLoading">
-      <div class="visor-spinner"></div>
-      <span class="visor-loading-text" id="visorStatus">Iniciando visor...</span>
-    </div>
-    <div class="visor-error" id="visorError">No se pudo cargar el modelo</div>
-    <canvas class="visor-canvas" id="visorCanvas"></canvas>
-    <div class="visor-controls">
-      <button class="visor-ctrl-btn active" id="btnRotate">&#10679; Rotar</button>
-      <button class="visor-ctrl-btn" id="btnReset">&#10809; Reset</button>
-      <button class="visor-ctrl-btn" id="btnFull">&#9974; Full</button>
-    </div>
-  </div>
-</section>
 <!-- ══════════════════════════════════
      NOSOTROS
 ══════════════════════════════════ -->
