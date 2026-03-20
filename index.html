@@ -1467,12 +1467,12 @@ footer {
   </div>
 
   <div class="pose-selector">
-    <button class="pose-btn active" data-model="Chilean Infantery_pose_marchando_low.glb">Marchando</button>
-    <button class="pose-btn" data-model="Chilean Infantery_pose_apuntado_low.glb">Apuntado</button>
-    <button class="pose-btn" data-model="Chilean Infantery_pose_apuntando_hincado_low.glb">Apuntando hincado</button>
-    <button class="pose-btn" data-model="Chilean Infantery_pose_cargando_low.glb">Cargando</button>
-    <button class="pose-btn" data-model="Chilean Infantery_pose_corriendo_low.glb">Corriendo</button>
-    <button class="pose-btn" data-model="Chilean Infantery_pose_trotando_low.glb">Trotando</button>
+    <button class="pose-btn active" data-model="chilean infantery_pose_marchando_low.glb">Marchando</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_apuntado_low.glb">Apuntado</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_apuntando_hincado_low.glb">Apuntando hincado</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_cargando_low.glb">Cargando</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_corriendo_low.glb">Corriendo</button>
+    <button class="pose-btn" data-model="chilean infantery_pose_trotando_low.glb">Trotando</button>
   </div>
 
   <div class="visor-wrap" id="visorWrap">
@@ -1909,7 +1909,7 @@ window.addEventListener('load', function(){
     var loadingEl = document.getElementById('visorLoading');
     var errorEl   = document.getElementById('visorError');
     /* Use raw filename — browsers handle spaces in XHR paths */
-    var url = 'models/' + filename;
+    var url = filename;
     console.log('[3D] loading:', url);
     st('Descargando: ' + filename);
     if(loadingEl) loadingEl.style.display = 'flex';
