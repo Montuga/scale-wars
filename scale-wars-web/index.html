@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Scale Wars — Historia en miniatura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;0,900;1,300;1,700&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════════════
+   SCALE WARS — CINEMATIC HERO v3
+   PNG sequence scroll · GSAP ScrollTrigger · Canvas
+   Fix: frame updates, canvas fade-out, slogan, nosotros
+═══════════════════════════════════════════════════════ */
+:root {
+  --red:       #E32D2D;
+  --red-dk:    #9E1A1A;
+  --carbon:    #2D3132;
+  --carbon-dk: #1C1F20;
+  /* Hero bg: Scale Wars carbon darkened to near-black for frame overlay */
+  --hero-bg:   #0C0E0F;
+  --offwhite:  #F5F3F0;
+  --white:     #FFFFFF;
+  --ease:      cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-out:  cubic-bezier(0.25, 1, 0.5, 1);
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior: auto; }
+body {
+  font-family:'Montserrat','Open Sans',sans-serif;
+  background:var(--hero-bg);
+  color:var(--white);
+  overflow-x:hidden;
+}
+@media (hover:hover) { body { cursor:none; } }
+a { text-decoration:none; color:inherit; }
+
+/* ── CURSOR ───────────────────────────────────── */
+.cur-dot,.cur-ring {
+  position:fixed; pointer-events:none;
+  z-index:99999; transform:translate(-50%,-50%);
+  will-change:transform;
+}
+.cur-dot  { width:6px; height:6px; background:var(--red); border-radius:50%; }
+.cur-ring {
+  width:34px; height:34px;
+  border:1.5px solid rgba(227,45,45,.45); border-radius:50%;
+  transition:width .35s var(--ease), height .35s var(--ease), border-color .35s;
+}
+body.c-hover .cur-ring { width:56px; height:56px; border-color:var(--red); }
+
+/* ── LOADER ───────────────────────────────────── */
+#loader {
+  position:fixed; inset:0; z-index:8000;
+  background:var(--hero-bg);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2.8rem;
+  transition:opacity .9s var(--ease), visibility .9s;
+}
+#loader.hide { opacity:0; visibility:hidden; pointer-events:none; }
+.fl-brand     { display:flex; align-items:center; justify-content:center; }
+.fl-logo-img  { width:clamp(220px,28vw,340px); display:block; }
+.fl-bar-wrap  { width:240px; display:flex; flex-direction:column; align-items:center; gap:.85rem; }
+.fl-bar       { width:100%; height:1px; background:rgba(255,255,255,.1); position:relative; overflow:hidden; }
+.fl-fill      { position:absolute; top:0; left:0; bottom:0; background:var(--red); width:0%; transition:width .08s linear; }
+.fl-pct       { font-size:.56rem; letter-spacing:.35em; color:rgba(255,255,255,.3); text-transform:uppercase; }
+
+/* ── NAV ──────────────────────────────────────── */
+.sw-nav {
+  position:fixed; top:0; left:0; right:0; z-index:500;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1.8rem 4rem;
+  transition:background .4s, padding .4s, backdrop-filter .4s;
+}
+.sw-nav.scrolled {
+  background:rgba(28,31,32,.92); backdrop-filter:blur(16px);
+  padding:1.1rem 4rem; border-bottom:1px solid rgba(255,255,255,.05);
+}
+.nav-brand { display:flex; align-items:center; opacity:0; transition:opacity .6s .3s; }
+.nav-brand.vis { opacity:1; }
+.nav-logo-img { height:32px; display:block; }
+.nav-links { display:flex; align-items:center; gap:2.5rem; opacity:0; transition:opacity .6s .4s; }
+.nav-links.vis { opacity:1; }
+.nav-links a {
+  font-size:.7rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+  color:rgba(255,255,255,.52); transition:color .2s; position:relative;
+}
+.nav-links a::after {
+  content:''; position:absolute; bottom:-3px; left:0; right:0;
+  height:1px; background:var(--red);
+  transform:scaleX(0); transform-origin:right;
+  transition:transform .3s var(--ease);
+}
+.nav-links a:hover { color:var(--white); }
+.nav-links a:hover::after { transform:scaleX(1); transform-origin:left; }
+.nav-cta {
+  background:var(--red) !important; color:var(--white) !important;
+  padding:.34rem .92rem; border-radius:2px;
+  font-weight:700 !important; font-size:.62rem !important; letter-spacing:.18em !important;
+}
+.nav-cta::after { display:none !important; }
+.nav-cta:hover { background:var(--red-dk) !important; }
+@media (max-width:768px) {
+  .sw-nav { padding:1.4rem 1.5rem; }
+  .sw-nav.scrolled { padding:.9rem 1.5rem; }
+  .nav-links { display:none; }
+}
+
+/* ═══════════════════════════════════════════════
+   HERO — PINNED SCROLL SEQUENCE
+═══════════════════════════════════════════════ */
+#hero-sticky {
+  width:100%; height:100vh;
+  position:relative; overflow:hidden;
+  /* Dark near-black brand bg — canvas is alpha:true so transparent
+     PNG areas show this color, making frames appear/disappear naturally */
+  background:var(--hero-bg);
+}
+
+/* Canvas — the main visual stage */
+#hero-canvas {
+  position:absolute; inset:0;
+  width:100%; height:100%; display:block;
+}
+
+/* Canvas fade — fades hero to brand-dark at end of scroll */
+#canvas-fade {
+  position:absolute; inset:0; z-index:5;
+  background:var(--hero-bg);
+  opacity:0; pointer-events:none;
+  will-change:opacity;
+}
+
+/* ── Film grain ── */
+.grain {
+  position:absolute; inset:0; z-index:6; pointer-events:none; overflow:hidden;
+}
+.grain::after {
+  content:''; position:absolute; inset:-150%; width:400%; height:400%;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.042; animation:grain-shift .85s steps(1) infinite; will-change:transform;
+}
+@keyframes grain-shift {
+  0%  { transform:translate(0,0);     } 14% { transform:translate(-4%,-9%);  }
+  28% { transform:translate(-13%,5%); } 42% { transform:translate(6%,-22%);  }
+  57% { transform:translate(-4%,22%); } 71% { transform:translate(14%,0%);   }
+  85% { transform:translate(-2%,18%); }100% { transform:translate(-9%,9%);   }
+}
+
+/* ── Vignette ── */
+.vignette {
+  position:absolute; inset:0; z-index:7; pointer-events:none;
+  background:radial-gradient(ellipse at center,
+    transparent 36%, rgba(8,8,8,.52) 78%, rgba(8,8,8,.76) 100%);
+}
+
+/* ── Fogs ── */
+.fog-bottom {
+  position:absolute; bottom:0; left:0; right:0;
+  height:50%; z-index:8; pointer-events:none;
+  background:linear-gradient(to top,rgba(28,31,32,.92) 0%,rgba(28,31,32,.44) 46%,transparent 100%);
+}
+.fog-top {
+  position:absolute; top:0; left:0; right:0;
+  height:22%; z-index:8; pointer-events:none;
+  background:linear-gradient(to bottom,rgba(28,31,32,.55) 0%,transparent 100%);
+}
+
+/* ── Red accent edge ── */
+.hero-edge {
+  position:absolute; left:0; top:0; bottom:0;
+  width:3px; z-index:15; background:var(--red);
+  transform-origin:bottom; transform:scaleY(0); will-change:transform;
+}
+
+/* ── Center intro rule ── */
+.hero-rule {
+  position:absolute; left:50%; top:50%;
+  transform:translate(-50%, calc(-50% + 7.5rem));
+  z-index:12; width:0; height:1px;
+  background:rgba(227,45,45,.4); will-change:width;
+}
+
+/* ═══════════════════════════════════════════════
+   CHAPTERS
+═══════════════════════════════════════════════ */
+.hero-ch {
+  position:absolute; z-index:10;
+  pointer-events:none; will-change:transform,opacity;
+}
+
+/* ── Ch1 · Brand Intro ── */
+#ch-intro {
+  inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; opacity:0;
+}
+.intro-logo-img {
+  width:clamp(240px,32vw,480px);
+  display:block;
+  filter:drop-shadow(0 0 40px rgba(227,45,45,.5));
+  margin-bottom:1.6rem;
+}
+.intro-title-row { display:none; }
+.intro-word {
+  font-size:clamp(2.6rem,6.5vw,5.8rem);
+  font-weight:900; letter-spacing:.18em;
+  text-transform:uppercase; line-height:1;
+}
+
+/* SLOGAN — "Historia en miniatura" — prominent hero tagline */
+.intro-slogan {
+  font-size:clamp(1rem,2vw,1.45rem);
+  font-weight:600;
+  font-style:italic;
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.88);
+  margin-top:.2rem;
+  margin-bottom:.2rem;
+  position:relative; display:inline-block;
+}
+.intro-slogan::before,
+.intro-slogan::after {
+  content:'';
+  position:absolute; top:50%;
+  width:clamp(18px,2vw,32px); height:1px;
+  background:var(--red); opacity:.7;
+}
+.intro-slogan::before { right:calc(100% + .8rem); }
+.intro-slogan::after  { left: calc(100% + .8rem); }
+.intro-badge {
+  margin-top:2rem;
+  font-size:clamp(.5rem,.9vw,.62rem); font-weight:700;
+  letter-spacing:.5em; text-transform:uppercase;
+  color:rgba(255,255,255,.2);
+  border-top:1px solid rgba(255,255,255,.1); padding-top:.8rem;
+}
+
+/* ── Ch2 · Main Headline ── */
+#ch-headline {
+  bottom:clamp(8vh,11vh,13vh);
+  left:clamp(1.5rem,6vw,7rem);
+  right:clamp(1.5rem,6vw,7rem);
+}
+.main-hl {
+  font-size:clamp(4.8rem,13vw,14rem);
+  font-weight:900; line-height:.88;
+  letter-spacing:-.03em; text-transform:uppercase;
+}
+.hl-row           { display:block; overflow:hidden; }
+.hl-row span      { display:block; transform:translateY(115%); will-change:transform; }
+.hl-row.accent span{ color:var(--red); }
+.hl-row.sub span  {
+  font-size:.38em; font-style:italic; font-weight:300;
+  letter-spacing:.3em; color:rgba(255,255,255,.48); padding-bottom:.35em;
+}
+
+/* ── Ch3 · Story Copy ── */
+#ch-copy {
+  bottom:clamp(8vh,11vh,13vh);
+  right:clamp(1.5rem,6vw,7rem);
+  max-width:clamp(260px,30vw,400px);
+  text-align:right; opacity:0;
+}
+.copy-rule {
+  width:42px; height:1.5px; background:var(--red);
+  margin-left:auto; margin-bottom:1.6rem;
+  transform-origin:right; transform:scaleX(0);
+}
+.copy-hl {
+  font-size:clamp(.88rem,1.6vw,1.08rem); font-weight:700;
+  letter-spacing:.04em; line-height:1.45; margin-bottom:.9rem;
+}
+.copy-body {
+  font-size:clamp(.68rem,1.2vw,.8rem); font-weight:300;
+  letter-spacing:.05em; line-height:1.85; color:rgba(255,255,255,.48);
+}
+
+/* ── Ch4 · CTA ── */
+#ch-cta {
+  bottom:clamp(8vh,10vh,11vh);
+  left:clamp(1.5rem,6vw,7rem);
+  display:flex; flex-direction:column; gap:1.6rem; opacity:0;
+}
+.hero-cta {
+  display:inline-flex; align-items:center; gap:.9rem;
+  background:var(--red); color:var(--white);
+  font-size:.72rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase;
+  padding:1.1rem 2.2rem; border-radius:2px;
+  pointer-events:auto; cursor:none;
+  transition:background .2s, transform .2s; width:fit-content;
+}
+.hero-cta:hover       { background:var(--red-dk); transform:translateY(-2px); }
+.hero-cta svg         { width:15px; transition:transform .3s var(--ease-out); }
+.hero-cta:hover svg   { transform:translateX(4px); }
+.hero-specs {
+  display:flex; align-items:center; gap:.9rem;
+  font-size:.54rem; font-weight:700; letter-spacing:.28em;
+  text-transform:uppercase; color:rgba(255,255,255,.28);
+}
+.hero-specs-dot { width:3px; height:3px; border-radius:50%; background:var(--red); opacity:.5; }
+
+/* ── UI chrome ── */
+.scroll-cue {
+  position:absolute; bottom:2.2rem; left:50%;
+  transform:translateX(-50%); z-index:15; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; gap:.45rem;
+  will-change:opacity;
+}
+.scroll-cue-line {
+  width:1px; height:40px;
+  background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,.3));
+  animation:scl-pulse 2.2s ease-in-out infinite;
+}
+.scroll-cue-text { font-size:.5rem; letter-spacing:.44em; text-transform:uppercase; color:rgba(255,255,255,.28); }
+@keyframes scl-pulse {
+  0%,100% { transform:scaleY(1); opacity:.6; }
+  50%     { transform:scaleY(1.2); opacity:1; }
+}
+.hero-progress {
+  position:absolute; right:2.8rem; top:50%;
+  transform:translateY(-50%); z-index:15; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; gap:.7rem;
+}
+.prog-track { width:1px; height:72px; background:rgba(255,255,255,.1); position:relative; }
+.prog-fill  { position:absolute; top:0; left:0; right:0; background:var(--red); height:0%; }
+.prog-label { font-size:.44rem; letter-spacing:.3em; color:rgba(255,255,255,.22); text-transform:uppercase; writing-mode:vertical-rl; }
+.frame-ctr  {
+  position:absolute; bottom:2.2rem; right:clamp(1.5rem,6vw,7rem);
+  z-index:15; pointer-events:none;
+  font-size:.44rem; letter-spacing:.3em; color:rgba(255,255,255,.16);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── Responsive ── */
+@media (max-width:900px) {
+  #ch-copy { display:none; }
+  #ch-headline { left:4vw; right:4vw; }
+  .main-hl { font-size:clamp(3.8rem,13vw,7rem); }
+  #ch-cta  { left:4vw; }
+  .hero-progress { right:1rem; }
+  .frame-ctr { right:4vw; }
+}
+@media (max-width:480px) {
+  .main-hl { font-size:clamp(3.2rem,16vw,5.5rem); }
+  #ch-cta  { bottom:12vh; }
+}
+
+/* ═══════════════════════════════════════════════
+   STATEMENT SECTION
+═══════════════════════════════════════════════ */
+.statement {
+  min-height:100vh; background:var(--white); color:var(--carbon);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:6rem 4rem; text-align:center; position:relative;
+}
+.statement::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:80px;
+  background:linear-gradient(to bottom, var(--hero-bg), var(--white));
+  pointer-events:none;
+}
+.st-text { max-width:900px; }
+.st-line {
+  display:block; overflow:hidden;
+  font-size:clamp(1.8rem,4.2vw,4rem);
+  font-weight:900; line-height:1.14; letter-spacing:-.02em;
+}
+.st-line span      { display:block; transform:translateY(110%); transition:transform 1s var(--ease); }
+.st-line .accent   { color:var(--red); }
+.statement.in-view .st-line span { transform:translateY(0); }
+.statement.in-view .st-line:nth-child(2) span { transition-delay:.12s; }
+.statement.in-view .st-line:nth-child(3) span { transition-delay:.24s; }
+.stats {
+  display:flex; gap:5rem; margin-top:5rem;
+  opacity:0; transform:translateY(20px);
+  transition:opacity .8s .3s, transform .8s .3s var(--ease);
+}
+.statement.in-view .stats { opacity:1; transform:translateY(0); }
+.stat {
+  display:flex; flex-direction:column; align-items:center; gap:.4rem;
+  padding:0 2.5rem; border-right:1px solid rgba(0,0,0,.08);
+}
+.stat:last-child { border-right:none; }
+.stat-num { font-size:2.2rem; font-weight:900; color:var(--red); }
+.stat-lbl { font-size:.66rem; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:rgba(45,49,50,.4); }
+@media (max-width:768px) {
+  .statement { padding:5rem 2rem; }
+  .stats     { gap:2rem; flex-wrap:wrap; justify-content:center; }
+  .stat      { padding:0 1.5rem; }
+}
+
+/* ═══════════════════════════════════════════════
+   NOSOTROS SECTION
+═══════════════════════════════════════════════ */
+.nosotros {
+  background:var(--offwhite); color:var(--carbon);
+  padding:8rem 4rem;
+}
+.nosotros-header {
+  display:flex; align-items:flex-end; justify-content:space-between;
+  margin-bottom:5rem; gap:2rem; overflow:hidden;
+}
+.nosotros-heading {
+  font-size:clamp(3.5rem,8vw,7rem); font-weight:900;
+  letter-spacing:-.03em; line-height:1;
+  transform:translateY(110%); transition:transform 1s var(--ease);
+}
+.nosotros-heading.in-view { transform:translateY(0); }
+.nosotros-intro {
+  max-width:320px; font-size:.84rem; color:rgba(45,49,50,.55);
+  line-height:1.75; text-align:right;
+  opacity:0; transform:translateY(12px);
+  transition:opacity .7s .4s, transform .7s .4s var(--ease);
+}
+.nosotros-intro.in-view { opacity:1; transform:translateY(0); }
+.team-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:1.5rem; margin-bottom:2rem;
+}
+.team-card {
+  background:var(--white);
+  border:1px solid rgba(45,49,50,.08);
+  border-top:3px solid var(--red);
+  border-radius:4px; padding:2.5rem;
+  opacity:0; transform:translateY(28px);
+  transition:opacity .7s var(--ease), transform .7s var(--ease),
+             border-color .3s, box-shadow .3s;
+  position:relative; overflow:hidden; cursor:none;
+}
+.team-card:nth-child(2) { transition-delay:.15s; }
+.team-card.in-view { opacity:1; transform:translateY(0); }
+.team-card:hover {
+  border-color:rgba(227,45,45,.25);
+  border-top-color:#ff4444;
+  box-shadow:0 8px 32px rgba(45,49,50,.08);
+  transform:translateY(-4px);
+}
+.team-card:nth-child(2).in-view:hover { transform:translateY(-4px); }
+.team-card::after {
+  content:attr(data-num);
+  position:absolute; top:-.5rem; right:1rem;
+  font-size:5rem; font-weight:900;
+  color:rgba(45,49,50,.04); pointer-events:none; line-height:1;
+}
+.team-role {
+  font-size:.63rem; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--red); margin-bottom:.9rem;
+}
+.team-name {
+  font-size:clamp(1.5rem,2.5vw,2rem); font-weight:900;
+  letter-spacing:-.02em; line-height:1.1; margin-bottom:1rem;
+}
+.team-divider {
+  width:2.5rem; height:2px; background:var(--red);
+  margin:1.2rem 0; border-radius:1px;
+}
+.team-desc { font-size:.84rem; color:rgba(45,49,50,.55); line-height:1.75; }
+.institution-block {
+  display:flex; align-items:center; gap:2.5rem;
+  background:var(--carbon); color:var(--white);
+  border-radius:4px; padding:2.5rem 3rem;
+  opacity:0; transform:translateY(20px);
+  transition:opacity .7s .3s, transform .7s .3s var(--ease);
+}
+.institution-block.in-view { opacity:1; transform:translateY(0); }
+.institution-badge {
+  flex-shrink:0; width:60px; height:60px;
+  background:var(--red); border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem; font-weight:900; color:var(--white); letter-spacing:.05em;
+}
+.institution-text p:first-child {
+  font-size:.62rem; font-weight:700; letter-spacing:.25em;
+  text-transform:uppercase; color:rgba(255,255,255,.38); margin-bottom:.4rem;
+}
+.institution-text strong { font-size:1rem; font-weight:700; line-height:1.4; }
+@media (max-width:768px) {
+  .nosotros { padding:5rem 1.5rem; }
+  .nosotros-header { flex-direction:column; align-items:flex-start; }
+  .nosotros-intro  { text-align:left; max-width:100%; }
+  .team-grid       { grid-template-columns:1fr; }
+  .institution-block { flex-direction:column; text-align:center; gap:1.5rem; padding:2rem; }
+}
+
+/* ═══════════════════════════════════════════════
+   CATALOGUE MARQUEE
+═══════════════════════════════════════════════ */
+.catalogue {
+  background: var(--carbon-dk);
+  padding: clamp(5rem,9vw,8rem) 0 clamp(5rem,9vw,8rem);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Section header */
+.cat-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 clamp(1.5rem,6vw,7rem);
+  margin-bottom: clamp(2.4rem,4vw,3.6rem);
+}
+.cat-kicker {
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .5em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: .6rem;
+}
+.cat-heading-group { display: flex; flex-direction: column; }
+.cat-title {
+  font-size: clamp(1.6rem,3.5vw,2.8rem);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--white);
+}
+.cat-title-accent { color: var(--red); }
+.cat-link {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.38);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  padding-bottom: 2px;
+  transition: color .2s, border-color .2s;
+  white-space: nowrap;
+  align-self: center;
+}
+.cat-link:hover { color: var(--white); border-color: var(--red); }
+
+/* Marquee wrapper */
+.marquee-outer {
+  position: relative;
+  overflow: hidden;
+  /* fade edges */
+}
+.marquee-outer::before,
+.marquee-outer::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: clamp(80px,10vw,160px);
+  z-index: 2;
+  pointer-events: none;
+}
+.marquee-outer::before {
+  left: 0;
+  background: linear-gradient(to right, var(--carbon-dk) 0%, transparent 100%);
+}
+.marquee-outer::after {
+  right: 0;
+  background: linear-gradient(to left, var(--carbon-dk) 0%, transparent 100%);
+}
+
+/* Scrolling track */
+.marquee-inner {
+  display: flex;
+  gap: clamp(1rem,1.6vw,1.4rem);
+  width: max-content;
+  padding: .4rem clamp(.6rem,1vw,.8rem);
+  animation: marquee-scroll 38s linear infinite;
+  will-change: transform;
+}
+.marquee-inner.paused { animation-play-state: paused; }
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Product card */
+.cat-card {
+  width: clamp(200px,22vw,280px);
+  flex-shrink: 0;
+  background: #111314;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.05);
+  transition: transform .35s var(--ease), border-color .35s;
+  cursor: none;
+  position: relative;
+}
+.cat-card:hover {
+  transform: translateY(-6px) scale(1.015);
+  border-color: rgba(227,45,45,.35);
+}
+.cat-card-img-wrap {
+  width: 100%;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: #e8e6e3;
+  position: relative;
+}
+.cat-card-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform .55s var(--ease);
+}
+.cat-card:hover .cat-card-img-wrap img { transform: scale(1.06); }
+
+/* Bottom gradient overlay on image */
+.cat-card-img-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(17,19,20,.85) 0%, transparent 100%);
+  pointer-events: none;
+}
+.cat-card-info {
+  padding: .9rem 1rem 1rem;
+}
+.cat-card-cat {
+  font-size: .5rem;
+  font-weight: 700;
+  letter-spacing: .38em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: .35rem;
+}
+.cat-card-name {
+  font-size: clamp(.72rem,.95vw,.88rem);
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--white);
+  line-height: 1.3;
+  margin-bottom: .55rem;
+}
+.cat-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cat-card-price {
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: var(--white);
+}
+.cat-card-badge {
+  font-size: .44rem;
+  font-weight: 700;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.28);
+  border: 1px solid rgba(255,255,255,.1);
+  padding: .2rem .45rem;
+  border-radius: 2px;
+}
+
+@media (max-width:768px) {
+  .cat-header { flex-direction: column; gap: .8rem; }
+  .cat-card   { width: clamp(160px,52vw,200px); }
+}
+</style>
+</head>
+<body>
+
+<div class="cur-dot"  id="cur-dot"></div>
+<div class="cur-ring" id="cur-ring"></div>
+
+<!-- ══════════════ LOADER ══════════════ -->
+<div id="loader">
+  <div class="fl-brand">
+    <img src="Catalogue/logo_transparent.png" class="fl-logo-img" alt="Scale Wars"/>
+  </div>
+  <div class="fl-bar-wrap">
+    <div class="fl-bar"><div class="fl-fill" id="fl-fill"></div></div>
+    <span class="fl-pct" id="fl-pct">Cargando secuencia…</span>
+  </div>
+</div>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav class="sw-nav" id="nav">
+  <div class="nav-brand" id="nav-brand">
+    <img src="Catalogue/logo_transparent.png" class="nav-logo-img" alt="Scale Wars"/>
+  </div>
+  <div class="nav-links" id="nav-links">
+    <a href="GitHub/scale-wars-clone/coleccion.html">Colección</a>
+    <a href="#nosotros">Nosotros</a>
+    <a href="#waitlist" class="nav-cta">Comprar</a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     HERO — PINNED SCROLL-DRIVEN FRAME SEQUENCE
+     GSAP pins this div, creates spacer for 380vh.
+     Canvas updates on every scroll tick.
+     canvas-fade overlay fades out at end.
+══════════════════════════════════════════════ -->
+<div id="hero-sticky">
+
+  <canvas id="hero-canvas"></canvas>
+
+  <!-- KEY FIX: dark overlay fades IN at end of scroll
+       so frames don't "stay in background" after pin releases -->
+  <div id="canvas-fade"></div>
+
+  <div class="grain"></div>
+  <div class="vignette"></div>
+  <div class="fog-bottom"></div>
+  <div class="fog-top"></div>
+  <div class="hero-edge" id="hero-edge"></div>
+  <div class="hero-rule" id="hero-rule"></div>
+
+  <!-- Ch1 · Brand intro · frames 1–30 -->
+  <div class="hero-ch" id="ch-intro">
+    <img src="Catalogue/logo_transparent.png" class="intro-logo-img" alt="Scale Wars"/>
+    <div class="intro-title-row">
+      <span class="intro-word" id="intro-scale">SCALE</span>
+      <span class="intro-word" id="intro-wars">WARS</span>
+    </div>
+    <!-- SLOGAN — prominent, centered -->
+    <p class="intro-slogan">Historia en miniatura</p>
+    <p class="intro-badge">SW · 1879 · Guerra del Pacífico</p>
+  </div>
+
+  <!-- Ch2 · Main headline · frames 31–90 -->
+  <div class="hero-ch" id="ch-headline">
+    <h1 class="main-hl" aria-label="Revive el pasado a escala">
+      <span class="hl-row"><span id="hl-1">REVIVE</span></span>
+      <span class="hl-row sub"><span id="hl-sub">el pasado</span></span>
+      <span class="hl-row accent"><span id="hl-2">A ESCALA</span></span>
+    </h1>
+  </div>
+
+  <!-- Ch3 · Story copy · frames 91–130 -->
+  <div class="hero-ch" id="ch-copy">
+    <div class="copy-rule" id="copy-rule"></div>
+    <p class="copy-hl">Las únicas miniaturas<br/>originales de la<br/>Guerra del Pacífico.</p>
+    <p class="copy-body">
+      Diseñadas con precisión histórica certificada<br/>
+      por profesionales del más alto nivel.<br/>
+      Resina ultra resistente · Escala 1:35
+    </p>
+  </div>
+
+  <!-- Ch4 · CTA · frames 131–157 -->
+  <div class="hero-ch" id="ch-cta">
+    <a href="GitHub/scale-wars-clone/coleccion.html" class="hero-cta">
+      Explorar Colección
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M2 8H14M14 8L8 2M14 8L8 14" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <div class="hero-specs">
+      <span>Escala 1:35</span>
+      <div class="hero-specs-dot"></div>
+      <span>Resina Ultra Resistente</span>
+      <div class="hero-specs-dot"></div>
+      <span>Hecho en Chile</span>
+    </div>
+  </div>
+
+  <!-- UI chrome -->
+  <div class="scroll-cue" id="scroll-cue">
+    <div class="scroll-cue-line"></div>
+    <span class="scroll-cue-text">Scroll</span>
+  </div>
+  <div class="hero-progress">
+    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    <span class="prog-label">SW</span>
+  </div>
+  <div class="frame-ctr" id="frame-ctr">001 / 157</div>
+
+</div><!-- #hero-sticky -->
+
+
+<!-- ══════════════════════════════════════════════
+     STATEMENT
+══════════════════════════════════════════════ -->
+<section class="statement" id="statement">
+  <div class="st-text">
+    <span class="st-line"><span>Lo que ves en cada pieza</span></span>
+    <span class="st-line"><span>son horas de investigación hechas forma —</span></span>
+    <span class="st-line"><span>historia que puedes <span class="accent">sostener en tus manos.</span></span></span>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="stat-num">12+</span><span class="stat-lbl">Modelos</span></div>
+    <div class="stat"><span class="stat-num">1:35</span><span class="stat-lbl">Escala</span></div>
+    <div class="stat"><span class="stat-num">100%</span><span class="stat-lbl">Chile</span></div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     CATALOGUE MARQUEE
+══════════════════════════════════════════════ -->
+<section class="catalogue" id="catalogo">
+
+  <div class="cat-header">
+    <div class="cat-heading-group">
+      <span class="cat-kicker">Colección</span>
+      <h2 class="cat-title">Guerra del Pacífico <span class="cat-title-accent">1879</span></h2>
+    </div>
+    <a href="#" class="cat-link">Ver catálogo completo &rarr;</a>
+  </div>
+
+  <div class="marquee-outer" id="marquee-outer">
+    <div class="marquee-inner" id="marquee-inner">
+      <!-- cards are injected by JS -->
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     NOSOTROS
+══════════════════════════════════════════════ -->
+<section class="nosotros" id="nosotros">
+
+  <div class="nosotros-header">
+    <div class="nosotros-heading" id="nos-heading">Nosotros</div>
+    <p class="nosotros-intro" id="nos-intro">
+      Historia e ingeniería visual al servicio<br/>
+      de la memoria de Chile.
+    </p>
+  </div>
+
+  <div class="team-grid">
+    <div class="team-card" id="tc-1" data-num="01">
+      <div class="team-role">Historiador</div>
+      <div class="team-name">Sebastián<br/>Panatt</div>
+      <div class="team-divider"></div>
+      <p class="team-desc">
+        Magíster en Historia de la PUC, especializado en la Antigüedad Clásica
+        con un enfoque en la historia militar.
+      </p>
+    </div>
+    <div class="team-card" id="tc-2" data-num="02">
+      <div class="team-role">Director de Arte &amp; Modelador 3D</div>
+      <div class="team-name">Tomás<br/>Montagna</div>
+      <div class="team-divider"></div>
+      <p class="team-desc">
+        Modelador 3D y Director de Arte del proyecto.
+        Responsable del diseño, escultura digital y dirección visual
+        de cada figura en escala 1:35, desde el concepto hasta la pieza final.
+      </p>
+    </div>
+  </div>
+
+  <div class="institution-block" id="institution">
+    <div class="institution-badge">EO</div>
+    <div class="institution-text">
+      <p>Proyecto asociado con</p>
+      <strong>Academia de Ex Oficiales del Ejército de Chile</strong>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   SCALE WARS — CINEMATIC HERO v3
+   ─────────────────────────────────────────────────────────
+   FIX 1: canvas-fade overlay → frames properly disappear
+   FIX 2: drawFrame uses try/catch, no .complete gating
+   FIX 3: nearest-frame fallback (always shows something)
+   FIX 4: all batches start immediately (no stagger delay)
+   NEW:   slogan prominent, nosotros IntersectionObserver
+═══════════════════════════════════════════════════════════ */
+(() => {
+  'use strict';
+
+  /* ── CONFIG ───────────────────────────────────── */
+  // Path from Documents/ to frame PNGs (space → %20)
+  const BASE    = 'Renders/Renders%20Blender/sequence_/';
+  const TOTAL   = 157;   // frame_0001 → frame_0157
+  const BATCH   = 12;    // simultaneous loads per batch
+  // 1.5× faster = 380 / 1.5 ≈ 253vh of scroll to play all frames
+  const SCROLL  = '+=253%';
+
+  /* Chapter progress ranges */
+  const CH = {
+    intro:    { in:[0.00,0.10], out:[0.18,0.27] },
+    headline: { inBase:0.22, stagger:0.055, inDur:0.10, out:[0.56,0.65] },
+    copy:     { in:[0.63,0.74], out:[0.85,0.93] },
+    cta:      { in:[0.90,1.00] },
+    /* canvas fade-out: starts at 0.88, full black at 1.0 */
+    canvasFade:{ start:0.88, end:1.00 },
+  };
+
+  /* ── STATE ────────────────────────────────────── */
+  const frames  = new Array(TOTAL).fill(null);
+  let loaded    = 0;
+  let curFrame  = -1;
+
+  /* ── DOM ──────────────────────────────────────── */
+  const canvas     = document.getElementById('hero-canvas');
+  // alpha:true → transparent areas of PNG frames reveal --hero-bg underneath
+  const ctx        = canvas.getContext('2d', { alpha:true });
+  const canvasFade = document.getElementById('canvas-fade');
+  const loaderEl   = document.getElementById('loader');
+  const flFill     = document.getElementById('fl-fill');
+  const flPct      = document.getElementById('fl-pct');
+  const progFill   = document.getElementById('prog-fill');
+  const frameCtr   = document.getElementById('frame-ctr');
+  const heroEdge   = document.getElementById('hero-edge');
+  const heroRule   = document.getElementById('hero-rule');
+  const scrollCue  = document.getElementById('scroll-cue');
+
+  /* ── CANVAS SIZE ──────────────────────────────── */
+  let dpr = Math.min(window.devicePixelRatio||1, 2);
+  function resizeCanvas() {
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.width  = Math.floor(window.innerWidth  * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawFrame(Math.max(curFrame, 0));
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  /* ── COVER-FIT DRAW ───────────────────────────── */
+  /*
+   * FIX: no longer gates on img.complete.
+   * Uses try/catch so a not-yet-decoded frame just skips silently.
+   * This means the canvas always shows the most recent valid frame.
+   */
+  function drawFrame(idx) {
+    if (idx < 0 || idx >= TOTAL) return;
+    const img = frames[idx];
+    if (!img) return;
+    try {
+      const cw = window.innerWidth, ch = window.innerHeight;
+      const iw = img.naturalWidth  || 1920;
+      const ih = img.naturalHeight || 1080;
+      const s  = Math.max(cw/iw, ch/ih);
+      // clearRect FIRST → wipes previous frame so it doesn't "stay" on canvas
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(img, (cw-iw*s)*.5, (ch-ih*s)*.5, iw*s, ih*s);
+      curFrame = idx;
+    } catch(e) { /* frame not decoded yet — skip silently */ }
+  }
+
+  /*
+   * FIX: if exact frame isn't ready, find nearest loaded one.
+   * This prevents stale frames from "staying" on screen.
+   */
+  function drawBest(target) {
+    if (frames[target] && frames[target].naturalWidth > 0) {
+      return drawFrame(target);
+    }
+    // Search outward from target
+    for (let r = 1; r < TOTAL; r++) {
+      const lo = target - r, hi = target + r;
+      if (lo >= 0   && frames[lo] && frames[lo].naturalWidth > 0) { drawFrame(lo); return; }
+      if (hi < TOTAL && frames[hi] && frames[hi].naturalWidth > 0) { drawFrame(hi); return; }
+    }
+  }
+
+  /* ── LOADING ──────────────────────────────────── */
+  function onLoad() {
+    loaded++;
+    const pct = Math.round((loaded/TOTAL)*100);
+    flFill.style.width = pct + '%';
+    flPct.textContent  = pct + '%';
+    // Draw first frame the moment it arrives
+    if (loaded === 1 && frames[0]) drawBest(0);
+    if (loaded === TOTAL) onAllReady();
+  }
+
+  function frameSrc(n) {
+    return BASE + 'frame_' + String(n).padStart(4,'0') + '.png';
+  }
+
+  function loadAll() {
+    // FIX: all batches kick off immediately — no setTimeout stagger
+    // This maximizes parallel downloads from local disk
+    for (let i = 0; i < TOTAL; i++) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload  = onLoad;
+      img.onerror = onLoad; // count errors too, don't hang
+      img.src     = frameSrc(i + 1); // files are 1-based
+      frames[i]   = img;
+    }
+  }
+
+  function onAllReady() {
+    setTimeout(() => {
+      loaderEl.classList.add('hide');
+      setTimeout(() => {
+        loaderEl.style.display = 'none';
+        document.body.style.overflow = '';
+        initGSAP();
+      }, 900);
+    }, 350);
+  }
+
+  /* ── GSAP ─────────────────────────────────────── */
+  function initGSAP() {
+    gsap.registerPlugin(ScrollTrigger);
+
+    gsap.to(heroEdge, { scaleY:1, duration:1.6, ease:'power3.out', delay:.15 });
+    gsap.to(heroRule, { width:'12vw', duration:1.1, ease:'power3.out', delay:.8 });
+    document.getElementById('nav-brand').classList.add('vis');
+    document.getElementById('nav-links').classList.add('vis');
+
+    // Ch1 — tick() handles opacity from p=0 (starts visible)
+
+    // Main pin
+    ScrollTrigger.create({
+      trigger:    '#hero-sticky',
+      start:      'top top',
+      end:        SCROLL,
+      pin:        true,
+      pinSpacing: true,
+      scrub:      0.65,  // lower = more responsive & dynamic; was 1.4
+      onUpdate:   tick,
+    });
+
+    // Nav scrolled state
+    ScrollTrigger.create({
+      start:'top -1',
+      onUpdate: s => document.getElementById('nav').classList.toggle('scrolled', s.scroll()>40),
+    });
+
+    // Section reveals (IntersectionObserver)
+    initReveal();
+  }
+
+  /* ── SCROLL TICK ──────────────────────────────── */
+  const eioq  = t => t<.5 ? 2*t*t : -1+(4-2*t)*t;
+  const eoq   = t => 1-(1-t)*(1-t)*(1-t);
+  const clamp = (v,lo=0,hi=1) => Math.max(lo,Math.min(hi,v));
+  const rT    = (p,a,b) => clamp((p-a)/(b-a));
+
+  function tick(self) {
+    const p = self.progress;
+
+    /* ── Frames ── */
+    const fi = Math.min(Math.round(p*(TOTAL-1)), TOTAL-1);
+    drawBest(fi);
+
+    /* ── UI ── */
+    progFill.style.height = (p*100)+'%';
+    frameCtr.textContent  = String(fi+1).padStart(3,'0')+' / '+TOTAL;
+    gsap.set(scrollCue, { opacity: 1-clamp(p/.07) });
+
+    /* ── Center rule ── */
+    gsap.set(heroRule, {
+      width:   (clamp(1-rT(p,.05,.20))*12)+'vw',
+      opacity: clamp(1-rT(p,.12,.24)),
+    });
+
+    /* canvas-fade disabled — last frame stays as banner */
+
+    /* ── Chapter 1 · Intro ── starts fully visible at p=0, fades out only */
+    {
+      const c = CH.intro;
+      let a=1, y=0;
+      if (p > c.out[0]) { const t=rT(p,c.out[0],c.out[1]); a=1-eioq(t); y=-eioq(t)*28; }
+      gsap.set('#ch-intro', { opacity: p<=c.out[1]+.02 ? a : 0, y: p<=c.out[1]+.02 ? y : -28 });
+    }
+
+    /* ── Chapter 2 · Headline ── */
+    ['hl-1','hl-sub','hl-2'].forEach((id,i) => {
+      const li = CH.headline.inBase + i*CH.headline.stagger;
+      const le = li + CH.headline.inDur;
+      const [os,oe] = CH.headline.out;
+      let ty='115%', op=0;
+      if      (p<li)   { ty='115%'; op=0; }
+      else if (p<=le)  { const t=rT(p,li,le); ty=(115*(1-eoq(t)))+'%'; op=t>.1?1:0; }
+      else if (p<os)   { ty='0%'; op=1; }
+      else if (p<=oe)  { const t=rT(p,os,oe); ty=(-eioq(t)*28)+'%'; op=1-eioq(t); }
+      else             { ty='-28%'; op=0; }
+      gsap.set('#'+id, { y:ty, opacity:op });
+    });
+
+    /* ── Chapter 3 · Copy ── */
+    {
+      const c = CH.copy;
+      if (p>=c.in[0] && p<=c.out[1]+.02) {
+        let a=1, y=0, rs=1;
+        if (p<c.in[1])     { const t=rT(p,c.in[0],c.in[1]);   a=eioq(t); y=(1-eoq(t))*28; rs=eoq(t); }
+        else if (p>c.out[0]){ const t=rT(p,c.out[0],c.out[1]); a=1-eioq(t); y=-eioq(t)*22; }
+        gsap.set('#ch-copy',   { opacity:a, y });
+        gsap.set('#copy-rule', { scaleX:rs, opacity:a });
+      } else {
+        gsap.set('#ch-copy',   { opacity:0, y: p<CH.copy.in[0]?28:-22 });
+        gsap.set('#copy-rule', { scaleX:0, opacity:0 });
+      }
+    }
+
+    /* ── Chapter 4 · CTA ── */
+    {
+      const c = CH.cta;
+      if (p>=c.in[0]) {
+        const a = eoq(rT(p,c.in[0],1.0));
+        gsap.set('#ch-cta', { opacity:a, y:(1-eoq(rT(p,c.in[0],1.0)))*32, pointerEvents:a>.5?'auto':'none' });
+      } else {
+        gsap.set('#ch-cta', { opacity:0, y:32, pointerEvents:'none' });
+      }
+    }
+  }
+
+  /* ── SECTION REVEALS ─────────────────────────── */
+  function initReveal() {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          obs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.2 });
+
+    // Statement section
+    const stmt = document.getElementById('statement');
+    if (stmt) obs.observe(stmt);
+
+    // Nosotros elements
+    ['nos-heading','nos-intro','tc-1','tc-2','institution'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
+  }
+
+  /* ── CURSOR ───────────────────────────────────── */
+  function initCursor() {
+    const dot  = document.getElementById('cur-dot');
+    const ring = document.getElementById('cur-ring');
+    let mx=innerWidth/2, my=innerHeight/2, rx=mx, ry=my;
+    document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; gsap.set(dot,{x:mx,y:my}); });
+    gsap.ticker.add(() => { rx+=(mx-rx)*.14; ry+=(my-ry)*.14; gsap.set(ring,{x:rx,y:ry}); });
+    document.querySelectorAll('a,button').forEach(el => {
+      el.addEventListener('mouseenter', ()=>document.body.classList.add('c-hover'));
+      el.addEventListener('mouseleave', ()=>document.body.classList.remove('c-hover'));
+    });
+  }
+
+  /* ── INIT ─────────────────────────────────────── */
+  function init() {
+    resizeCanvas();
+    initCursor();
+    document.body.style.overflow = 'hidden';
+
+    // Initial states
+    gsap.set('#ch-intro',  { opacity:1 }); /* starts visible; tick handles fade-out */
+    gsap.set('#ch-copy',   { opacity:0, y:28 });
+    gsap.set('#ch-cta',    { opacity:0, y:32, pointerEvents:'none' });
+    gsap.set(['#hl-1','#hl-sub','#hl-2'], { y:'115%', opacity:0 });
+    gsap.set('#copy-rule', { scaleX:0, opacity:0 });
+    gsap.set(heroEdge,     { scaleY:0 });
+    gsap.set(heroRule,     { width:'0vw' });
+    gsap.set(canvasFade,   { opacity:0, display:'none' }); /* disabled */
+    gsap.set('#nav-brand', { opacity:0 });
+    gsap.set('#nav-links', { opacity:0 });
+
+    loadAll();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CATALOGUE MARQUEE — vanilla JS
+═══════════════════════════════════════════════ */
+(() => {
+  const PRODUCTS = [
+    {
+      img:   'Catalogue/product_02.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado en Avance',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_03.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado al Asalto',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_04.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado Agachado',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_05.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado con Bayoneta',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_06.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado en Guardia',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_07.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado Avanzando',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_08.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Soldado de Línea',
+      price: '$24.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_09.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Suboficial',
+      price: '$29.990',
+      badge: '1:35'
+    },
+    {
+      img:   'Catalogue/product_10.jpg',
+      cat:   'Infantería · 1879',
+      name:  'Comandante de Infantería',
+      price: '$29.990',
+      badge: '1:35'
+    },
+  ];
+
+  function buildCard(p) {
+    return `
+      <div class="cat-card">
+        <div class="cat-card-img-wrap">
+          <img src="${p.img}" alt="${p.name}" loading="lazy"/>
+        </div>
+        <div class="cat-card-info">
+          <div class="cat-card-cat">${p.cat}</div>
+          <div class="cat-card-name">${p.name}</div>
+          <div class="cat-card-footer">
+            <span class="cat-card-price">${p.price}</span>
+            <span class="cat-card-badge">ESCALA ${p.badge}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function initMarquee() {
+    const inner = document.getElementById('marquee-inner');
+    if (!inner) return;
+
+    // Build one set, then duplicate it for seamless loop
+    const setHTML = PRODUCTS.map(buildCard).join('');
+    inner.innerHTML = setHTML + setHTML;
+
+    // Pause on hover
+    const outer = document.getElementById('marquee-outer');
+    outer.addEventListener('mouseenter', () => inner.classList.add('paused'));
+    outer.addEventListener('mouseleave', () => inner.classList.remove('paused'));
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMarquee);
+  } else {
+    initMarquee();
+  }
+})();
+</script>
+</body>
+</html>
