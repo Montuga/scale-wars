@@ -882,7 +882,7 @@ body.c-hover .cur-ring { width:56px; height:56px; border-color:var(--red); }
 
   /* ── CONFIG ───────────────────────────────────── */
   // Path from Documents/ to frame PNGs (space → %20)
-  const BASE    = 'Renders/Renders%20Blender/sequence_/';
+  const BASE    = 'frames/';
   const TOTAL   = 157;   // frame_0001 → frame_0157
   const BATCH   = 12;    // simultaneous loads per batch
   // 1.5× faster = 380 / 1.5 ≈ 253vh of scroll to play all frames
@@ -978,7 +978,7 @@ body.c-hover .cur-ring { width:56px; height:56px; border-color:var(--red); }
   }
 
   function frameSrc(n) {
-    return BASE + 'frame_' + String(n).padStart(4,'0') + '.png';
+    return BASE + 'frame_' + String(n).padStart(4,'0') + '.webp';
   }
 
   function loadAll() {
